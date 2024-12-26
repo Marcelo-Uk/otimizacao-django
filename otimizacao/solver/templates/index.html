@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Otimização</title>
+</head>
+<body>
+    <h1>Otimização Linear</h1>
+    <button onclick="fetchResults()">Resolver</button>
+    <h2>Resultados:</h2>
+    <pre id="result"></pre>
+    <img src="/solver/graph/" alt="Graph" />
+
+    <script>
+        function fetchResults() {
+            fetch('/solver/optimize/')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+                });
+        }
+    </script>
+</body>
+</html>
