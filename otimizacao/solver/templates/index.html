@@ -23,6 +23,19 @@
             max-width: 600px;
             border: 1px solid #ddd;
         }
+        .constraint {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .constraint button {
+            background: red;
+            color: white;
+            border: none;
+            padding: 3px 6px;
+            cursor: pointer;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
@@ -87,8 +100,16 @@
             div.className = 'constraint';
             div.innerHTML = `
                 <input type="text" placeholder="Exemplo: x1 + x2 <= 10" class="con-restriction">
+                <button onclick="removeConstraint(this)">Remover</button>
             `;
             document.getElementById('constraints').appendChild(div);
+        }
+
+        /**
+         * Remove uma restrição específica do formulário.
+         */
+        function removeConstraint(button) {
+            button.parentElement.remove();
         }
 
         /**

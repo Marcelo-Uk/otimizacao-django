@@ -150,20 +150,52 @@ def optimize(request):
             plt.figure(figsize=(10, 8))
             plt.xlabel('x1')
             plt.ylabel('x2')
+            plt.title('Gráfico da Região Factível e Solução Ótima')
 
-            # Linhas das restrições
+            # Desenhar eixos principais em preto e mais grossos
+            plt.axhline(0, color='black', linewidth=2)  # Eixo X
+            plt.axvline(0, color='black', linewidth=2)  # Eixo Y
+
+            # Intervalo amplo para melhor visualização
             x_range = np.linspace(-10, 10, 400)
+
             for i, (lhs, operator, rhs) in enumerate(constraint_lines):
                 try:
-                    A, B = find_line_points(lhs, rhs)
-                    x_points = [A[0], B[0]]
-                    y_points = [A[1], B[1]]
-                    plt.plot(x_points, y_points, label=f'Restrição {i + 1}')
+                    # Processar a expressão para obter coeficientes
+                    lhs = lhs.replace(' ', '').replace('--', '+').replace('+-', '-')
+                    coef_match = re.match(r'([+-]?\d*\.?\d*)x1([+-]?\d*\.?\d*)x2', lhs)
+                    
+                    if coef_match:
+                        coef_x1 = coef_match.group(1)
+                        coef_x2 = coef_match.group(2)
+
+                        # Ajustar coeficientes para valores padrão se estiverem vazios
+                        coef_x1 = float(coef_x1) if coef_x1 and coef_x1 != '-' else -1 if coef_x1 == '-' else 1
+                        coef_x2 = float(coef_x2) if coef_x2 and coef_x2 != '-' else -1 if coef_x2 == '-' else 1
+
+                        # Calcular valores de y para toda a extensão do eixo x
+                        y_range = (rhs - coef_x1 * x_range) / coef_x2
+
+                        # Desenhar a reta
+                        plt.plot(x_range, y_range, label=f'Restrição {i + 1}')
+
+                        # Preencher a região factível
+                        if operator == '<=':
+                            plt.fill_between(x_range, y_range, -100, alpha=0.2, label=f'Região Restrição {i + 1}')
+                        elif operator == '>=':
+                            plt.fill_between(x_range, y_range, 100, alpha=0.2, label=f'Região Restrição {i + 1}')
+
+                except ZeroDivisionError:
+                    print(f"Erro: Divisão por zero ao desenhar restrição {i + 1}")
                 except Exception as e:
                     print(f"Erro ao desenhar restrição {i + 1}: {e}")
 
-            # Adicionar ponto ótimo
-            plt.scatter(optimal_point[0], optimal_point[1], color='red', label='Solução Ótima')
+            # Adicionar ponto ótimo ao gráfico
+            plt.scatter(optimal_point[0], optimal_point[1], color='red', s=100, label='Solução Ótima')
+
+            # Ajustar limites do gráfico
+            plt.xlim(-10, 10)
+            plt.ylim(-10, 10)
             plt.legend()
             plt.grid(True)
             plt.savefig(filepath)
@@ -183,6 +215,7 @@ def optimize(request):
         except Exception as e:
             print(f"Erro inesperado: {e}")
             return JsonResponse({'error': f"Erro inesperado: {str(e)}"}, status=500)
+
 
 # View para geração de gráficos
 def graph(request):
