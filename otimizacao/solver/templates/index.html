@@ -55,15 +55,29 @@
         <textarea id="objectiveFunction" placeholder="Exemplo: 2x1 + 3x2"></textarea>
     </div>
     
-    <!-- Restrições -->
+    <!-- Restrições Técnicas -->
     <div class="section">
-        <h3>Restrições</h3>
+        <h3>Restrições Técnicas</h3>
         <div id="constraints">
             <div class="constraint">
                 <input type="text" placeholder="Exemplo: x1 + x2 <= 10" class="con-restriction">
             </div>
         </div>
         <button onclick="addConstraint()">+ Adicionar Restrição</button>
+    </div>
+
+    <!-- Restrições de Não Negatividade -->
+    <div class="section">
+        <h3>Restrições de Não Negatividade</h3>
+        <label>
+            x1 ≥ 0:
+            <input type="checkbox" id="nonNegativityX1" checked>
+        </label>
+        <br>
+        <label>
+            x2 ≥ 0:
+            <input type="checkbox" id="nonNegativityX2" checked>
+        </label>
     </div>
     
     <!-- Botão para Resolver -->
@@ -92,9 +106,6 @@
     {% csrf_token %}
     
     <script>
-        /**
-         * Adiciona uma nova restrição ao formulário.
-         */
         function addConstraint() {
             const div = document.createElement('div');
             div.className = 'constraint';
@@ -105,16 +116,10 @@
             document.getElementById('constraints').appendChild(div);
         }
 
-        /**
-         * Remove uma restrição específica do formulário.
-         */
         function removeConstraint(button) {
             button.parentElement.remove();
         }
 
-        /**
-         * Obtém o CSRF Token dos cookies.
-         */
         function getCSRFToken() {
             const cookies = document.cookie.split(';');
             for (let i = 0; i < cookies.length; i++) {
@@ -126,19 +131,6 @@
             return null;
         }
 
-        /**
-         * Oculta o gráfico quando há alterações nos campos.
-         */
-        function hideGraph() {
-            document.getElementById('graphSection').style.display = 'none';
-        }
-
-        document.getElementById('objectiveFunction').addEventListener('input', hideGraph);
-        document.querySelectorAll('.con-restriction').forEach(el => el.addEventListener('input', hideGraph));
-
-        /**
-         * Envia os dados para o backend e exibe os resultados.
-         */
         async function fetchResults() {
             const objective = document.getElementById('objectiveType').value;
             const objectiveFunction = document.getElementById('objectiveFunction').value;
@@ -146,19 +138,20 @@
             const constraints = Array.from(document.querySelectorAll('.con-restriction'))
                 .map(el => el.value);
 
+            const nonNegativity = {
+                x1: document.getElementById('nonNegativityX1').checked,
+                x2: document.getElementById('nonNegativityX2').checked
+            };
+
             const data = {
                 objective,
                 objectiveFunction,
-                constraints
+                constraints,
+                nonNegativity
             };
         
             try {
                 const csrfToken = getCSRFToken();
-                if (!csrfToken) {
-                    alert('CSRF Token não encontrado! Certifique-se de que os cookies estão habilitados.');
-                    return;
-                }
-            
                 const response = await fetch('/solver/optimize/', {
                     method: 'POST',
                     headers: {
@@ -168,33 +161,25 @@
                     body: JSON.stringify(data)
                 });
             
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    alert(`Erro: ${errorData.error}`);
-                    return;
-                }
-            
                 const result = await response.json();
             
-                // Atualiza resultados
                 document.getElementById('result').innerHTML = `
                     <strong>Ponto Ótimo:</strong> ${result['Ponto Ótimo']}<br>
                     <strong>Resultado Objetivo:</strong> ${result['Resultado Objetivo']}
                 `;
             
-                // Atualiza pontos das restrições
                 document.getElementById('restrictionPoints').innerHTML = result['Pontos Restrição']
                     .map(r => `${r['Restrição']}: (${r['Pontos'][0][0]}, ${r['Pontos'][0][1]}) → (${r['Pontos'][1][0]}, ${r['Pontos'][1][1]})`)
                     .join('<br>');
             
-                // Atualiza gráfico
                 document.getElementById('graph-image').src = result['graph_path'] + '?t=' + new Date().getTime();
                 document.getElementById('graphSection').style.display = 'block';
             } catch (error) {
-                console.error('Erro ao processar a solicitação:', error);
-                alert('Erro inesperado. Verifique o console para mais detalhes.');
+                console.error('Erro:', error);
+                alert('Erro inesperado.');
             }
         }
     </script>
 </body>
 </html>
+<!-- ############### Controle de Versão: FUNCIONAL #1 ############### -->

@@ -2,34 +2,39 @@ import matplotlib
 matplotlib.use('Agg')  # Backend adequado para renderizar gráficos em servidores
 
 from django.shortcuts import render
-from django.http import JsonResponse, FileResponse
-from pulp import LpProblem, LpVariable, LpMaximize, LpMinimize, lpSum
-import matplotlib.pyplot as plt
+from django.http import JsonResponse
+from pulp import LpProblem, LpVariable, LpMaximize, LpMinimize, lpSum, value
 import os
 import json
 import re
-from django.middleware.csrf import get_token
-from pulp import value
 import numpy as np
-import sympy as sp
+import matplotlib.pyplot as plt
 
+############### Controle de Versão: FINAL #1 ###############
 
-# View para renderizar a página inicial
+# View inicial
 def index(request):
-    csrf_token = get_token(request)
-    return render(request, 'index.html', {'csrf_token': csrf_token})
+    return render(request, 'index.html')
+
+# View para geração de gráficos
+def graph(request):
+    filepath = 'solver/static/graph.png'
+    if os.path.exists(filepath):
+        return FileResponse(open(filepath, 'rb'), content_type='image/png')
+    else:
+        return JsonResponse({'error': 'Gráfico não encontrado. Gere um gráfico primeiro.'}, status=404)
 
 
-# Função auxiliar para parsear expressões
+# Função para parsear expressões matemáticas
 def parse_expression(expression, variables):
     try:
         terms = re.findall(r'([+-]?\s*\d*\.*\d*)\s*([a-zA-Z_][a-zA-Z0-9_]*)', expression)
         parsed_terms = []
         for coef, var in terms:
             coef = coef.replace(' ', '')  # Remove espaços
-            if coef in ('', '+'):  # Coeficiente implícito positivo
+            if coef in ('', '+'):
                 coef = 1
-            elif coef == '-':  # Coeficiente implícito negativo
+            elif coef == '-':
                 coef = -1
             else:
                 coef = float(coef)
@@ -43,57 +48,32 @@ def parse_expression(expression, variables):
         raise ValueError(f"Erro ao analisar a expressão: {expression}. Detalhes: {str(e)}")
 
 
-# Função para calcular pontos de interseção entre duas restrições
-def calculate_intersection(lhs1, rhs1, lhs2, rhs2):
-    try:
-        x1, x2 = sp.symbols('x1 x2')
-        eq1 = sp.parse_expr(lhs1, local_dict={'x1': x1, 'x2': x2}) - rhs1
-        eq2 = sp.parse_expr(lhs2, local_dict={'x1': x1, 'x2': x2}) - rhs2
-        solution = sp.solve((eq1, eq2), (x1, x2))
-        return (float(solution[x1]), float(solution[x2]))
-    except Exception as e:
-        print(f"Erro ao calcular interseção: {e}")
-        return None
-
-
-# Função para encontrar pontos de uma reta
-def find_line_points(lhs, rhs):
+# Função para calcular dois pontos de uma reta
+def find_line_points(lhs: str, rhs: float):
     """
     Encontra dois pontos para uma restrição:
     - Ponto A (0, ?)
     - Ponto B (?, 0)
     """
     try:
-        # Garantir que a expressão está formatada corretamente
         lhs = lhs.replace(' ', '').replace('--', '+').replace('+-', '-')
+        x1_coef = re.search(r'([+-]?\d*)x1', lhs)
+        x2_coef = re.search(r'([+-]?\d*)x2', lhs)
 
-        # Coeficientes para x1 e x2
-        coef_x1 = 0
-        coef_x2 = 0
-        terms = re.findall(r'([+-]?\d*\.?\d*)\*?(x1|x2)', lhs)
+        x1_coef = float(x1_coef.group(1)) if x1_coef and x1_coef.group(1) not in ('', '+', '-') else (-1 if x1_coef and x1_coef.group(1) == '-' else 1)
+        x2_coef = float(x2_coef.group(1)) if x2_coef and x2_coef.group(1) not in ('', '+', '-') else (-1 if x2_coef and x2_coef.group(1) == '-' else 1)
 
-        for coef, var in terms:
-            coef = float(coef) if coef not in ('', '+', '-') else float(coef + '1')
-            if var == 'x1':
-                coef_x1 = coef
-            elif var == 'x2':
-                coef_x2 = coef
+        # Calcular pontos A (0, y) e B (x, 0)
+        y_intercept = rhs / x2_coef if x2_coef != 0 else 0
+        x_intercept = rhs / x1_coef if x1_coef != 0 else 0
 
-        # Resolver para x2 quando x1 = 0
-        y_value = rhs / coef_x2 if coef_x2 != 0 else 0
-
-        # Resolver para x1 quando x2 = 0
-        x_value = rhs / coef_x1 if coef_x1 != 0 else 0
-
-        return (0, y_value), (x_value, 0)
-    except ZeroDivisionError:
-        print("Erro: Divisão por zero ao calcular os pontos da reta.")
-        return (0, 0), (0, 0)
+        return (0, y_intercept), (x_intercept, 0)
     except Exception as e:
         print(f"Erro ao calcular pontos da restrição: {e}")
         return (0, 0), (0, 0)
 
-# Função principal de otimização (MATPLOTLIB)
+
+# Função principal de otimização
 def optimize(request):
     if request.method == 'POST':
         try:
@@ -102,6 +82,7 @@ def optimize(request):
             objective = data['objective']
             objectiveFunction = data['objectiveFunction']
             constraints = data['constraints']
+            non_negativity = data.get('nonNegativity', {'x1': True, 'x2': True})
 
             # Criar modelo de otimização
             sense = LpMaximize if objective == 'maximize' else LpMinimize
@@ -139,6 +120,12 @@ def optimize(request):
                         'Pontos': [A, B]
                     })
 
+            # Adicionar restrições de não negatividade
+            if non_negativity.get('x1', True):
+                model += variables['x1'] >= 0
+            if non_negativity.get('x2', True):
+                model += variables['x2'] >= 0
+
             # Resolver o modelo
             model.solve()
             optimal_point = [v.varValue for v in model.variables()]
@@ -152,52 +139,73 @@ def optimize(request):
             plt.ylabel('x2')
             plt.title('Gráfico da Região Factível e Solução Ótima')
 
-            # Desenhar eixos principais em preto e mais grossos
+            # Desenhar eixos principais
             plt.axhline(0, color='black', linewidth=2)  # Eixo X
             plt.axvline(0, color='black', linewidth=2)  # Eixo Y
 
             # Intervalo amplo para melhor visualização
-            x_range = np.linspace(-10, 10, 400)
+            x_range = np.linspace(-1, 10, 400)
 
             for i, (lhs, operator, rhs) in enumerate(constraint_lines):
                 try:
                     # Processar a expressão para obter coeficientes
                     lhs = lhs.replace(' ', '').replace('--', '+').replace('+-', '-')
+                    lhs = re.sub(r'(?<![\d.])x', '1x', lhs)  # Substitui 'x' por '1x' se não houver número antes
+                    lhs = re.sub(r'(?<![\d.])-x', '-1x', lhs)  # Substitui '-x' por '-1x' se não houver número antes
+                    lhs = re.sub(r'(?<![\d.])\+x', '+1x', lhs)  # Substitui '+x' por '+1x' se não houver número antes
+                    
                     coef_match = re.match(r'([+-]?\d*\.?\d*)x1([+-]?\d*\.?\d*)x2', lhs)
                     
                     if coef_match:
-                        coef_x1 = coef_match.group(1)
-                        coef_x2 = coef_match.group(2)
-
-                        # Ajustar coeficientes para valores padrão se estiverem vazios
-                        coef_x1 = float(coef_x1) if coef_x1 and coef_x1 != '-' else -1 if coef_x1 == '-' else 1
-                        coef_x2 = float(coef_x2) if coef_x2 and coef_x2 != '-' else -1 if coef_x2 == '-' else 1
+                        coef_x1 = float(coef_match.group(1)) if coef_match.group(1) else 1
+                        coef_x2 = float(coef_match.group(2)) if coef_match.group(2) else 1
 
                         # Calcular valores de y para toda a extensão do eixo x
                         y_range = (rhs - coef_x1 * x_range) / coef_x2
 
                         # Desenhar a reta
-                        plt.plot(x_range, y_range, label=f'Restrição {i + 1}')
+                        plt.plot(x_range, y_range, label=f'Restrição {i + 1}', linewidth=2)
 
-                        # Preencher a região factível
+                        # Preencher a região factível apenas em regiões positivas
                         if operator == '<=':
-                            plt.fill_between(x_range, y_range, -100, alpha=0.2, label=f'Região Restrição {i + 1}')
+                            plt.fill_between(
+                                x_range,
+                                y_range,
+                                -100,
+                                alpha=0.2,
+                                color='gray',
+                                where=(x_range >= 0) if non_negativity['x1'] else True
+                            )
                         elif operator == '>=':
-                            plt.fill_between(x_range, y_range, 100, alpha=0.2, label=f'Região Restrição {i + 1}')
+                            plt.fill_between(
+                                x_range,
+                                y_range,
+                                100,
+                                alpha=0.2,
+                                color='gray',
+                                where=(x_range >= 0) if non_negativity['x1'] else True
+                            )
 
                 except ZeroDivisionError:
                     print(f"Erro: Divisão por zero ao desenhar restrição {i + 1}")
                 except Exception as e:
                     print(f"Erro ao desenhar restrição {i + 1}: {e}")
 
-            # Adicionar ponto ótimo ao gráfico
+            # Adicionar ponto ótimo ao gráfico com anotação
             plt.scatter(optimal_point[0], optimal_point[1], color='red', s=100, label='Solução Ótima')
+            plt.text(optimal_point[0], optimal_point[1], f'({optimal_point[0]}, {optimal_point[1]})', fontsize=10, color='red')
 
-            # Ajustar limites do gráfico
-            plt.xlim(-10, 10)
-            plt.ylim(-10, 10)
+            # Ajustar limites positivos
+            plt.xlim(0 if non_negativity['x1'] else -1, 10)
+            plt.ylim(0 if non_negativity['x2'] else -1, 10)
+
+            # Adicionar grid
+            plt.grid(color='gray', linestyle='--', linewidth=0.5, alpha=0.7)
+
+            # Adicionar legenda
             plt.legend()
-            plt.grid(True)
+
+            # Salvar gráfico
             plt.savefig(filepath)
             plt.close()
 
@@ -215,12 +223,3 @@ def optimize(request):
         except Exception as e:
             print(f"Erro inesperado: {e}")
             return JsonResponse({'error': f"Erro inesperado: {str(e)}"}, status=500)
-
-
-# View para geração de gráficos
-def graph(request):
-    filepath = 'solver/static/graph.png'
-    if os.path.exists(filepath):
-        return FileResponse(open(filepath, 'rb'), content_type='image/png')
-    else:
-        return JsonResponse({'error': 'Gráfico não encontrado. Gere um gráfico primeiro.'}, status=404)
