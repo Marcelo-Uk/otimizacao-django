@@ -10,7 +10,7 @@ import re
 import numpy as np
 import matplotlib.pyplot as plt
 
-############### Controle de Versão: FINAL #1 ###############
+############### Controle de Versão: FINAL FULL ###############
 
 # View inicial
 def index(request):
@@ -52,25 +52,39 @@ def parse_expression(expression, variables):
 def find_line_points(lhs: str, rhs: float):
     """
     Encontra dois pontos para uma restrição:
-    - Ponto A (0, ?)
-    - Ponto B (?, 0)
+    - Para equações com duas variáveis: Ponto A (0, ?) e Ponto B (?, 0)
+    - Para equações com apenas x1: Ponto A (rhs, 0) e Ponto B (rhs, 2)
+    - Para equações com apenas x2: Ponto A (0, rhs) e Ponto B (2, rhs)
     """
     try:
         lhs = lhs.replace(' ', '').replace('--', '+').replace('+-', '-')
-        x1_coef = re.search(r'([+-]?\d*)x1', lhs)
-        x2_coef = re.search(r'([+-]?\d*)x2', lhs)
+        x1_match = re.search(r'([+-]?\d*)x1', lhs)
+        x2_match = re.search(r'([+-]?\d*)x2', lhs)
 
-        x1_coef = float(x1_coef.group(1)) if x1_coef and x1_coef.group(1) not in ('', '+', '-') else (-1 if x1_coef and x1_coef.group(1) == '-' else 1)
-        x2_coef = float(x2_coef.group(1)) if x2_coef and x2_coef.group(1) not in ('', '+', '-') else (-1 if x2_coef and x2_coef.group(1) == '-' else 1)
+        x1_coef = float(x1_match.group(1)) if x1_match and x1_match.group(1) not in ('', '+', '-') else (-1 if x1_match and x1_match.group(1) == '-' else 1)
+        x2_coef = float(x2_match.group(1)) if x2_match and x2_match.group(1) not in ('', '+', '-') else (-1 if x2_match and x2_match.group(1) == '-' else 1)
 
-        # Calcular pontos A (0, y) e B (x, 0)
+        # Caso com apenas x1 (ex: x1 <= 5)
+        if x1_match and not x2_match:
+            return (rhs, 0), (rhs, 2)
+
+        # Caso com apenas x2 (ex: x2 >= 6)
+        if x2_match and not x1_match:
+            return (0, rhs), (2, rhs)
+
+        # Caso padrão com duas variáveis (ex: -x1 + 2x2 <= 4)
         y_intercept = rhs / x2_coef if x2_coef != 0 else 0
         x_intercept = rhs / x1_coef if x1_coef != 0 else 0
 
         return (0, y_intercept), (x_intercept, 0)
+
+    except ZeroDivisionError:
+        print("Erro: Divisão por zero ao calcular pontos de restrição.")
+        return (0, 0), (0, 0)
     except Exception as e:
         print(f"Erro ao calcular pontos da restrição: {e}")
         return (0, 0), (0, 0)
+
 
 
 # Função principal de otimização
@@ -145,67 +159,65 @@ def optimize(request):
 
             # Intervalo amplo para melhor visualização
             x_range = np.linspace(-1, 10, 400)
+            y_range = np.linspace(-1, 10, 400)
+
+            # Ponto coringa (0,0)
+            coringa_x = 0
+            coringa_y = 0
 
             for i, (lhs, operator, rhs) in enumerate(constraint_lines):
                 try:
-                    # Processar a expressão para obter coeficientes
                     lhs = lhs.replace(' ', '').replace('--', '+').replace('+-', '-')
-                    lhs = re.sub(r'(?<![\d.])x', '1x', lhs)  # Substitui 'x' por '1x' se não houver número antes
-                    lhs = re.sub(r'(?<![\d.])-x', '-1x', lhs)  # Substitui '-x' por '-1x' se não houver número antes
-                    lhs = re.sub(r'(?<![\d.])\+x', '+1x', lhs)  # Substitui '+x' por '+1x' se não houver número antes
                     
-                    coef_match = re.match(r'([+-]?\d*\.?\d*)x1([+-]?\d*\.?\d*)x2', lhs)
+                    # Substituir sinais sem números explícitos
+                    lhs = re.sub(r'(?<![\d.])x', '1x', lhs)  # Substitui 'x' por '1x'
+                    lhs = re.sub(r'(?<![\d.])-x', '-1x', lhs)  # Substitui '-x' por '-1x'
+                    lhs = re.sub(r'(?<![\d.])\+x', '+1x', lhs)  # Substitui '+x' por '+1x'
                     
-                    if coef_match:
-                        coef_x1 = float(coef_match.group(1)) if coef_match.group(1) else 1
-                        coef_x2 = float(coef_match.group(2)) if coef_match.group(2) else 1
-
-                        # Calcular valores de y para toda a extensão do eixo x
-                        y_range = (rhs - coef_x1 * x_range) / coef_x2
-
-                        # Desenhar a reta
-                        plt.plot(x_range, y_range, label=f'Restrição {i + 1}', linewidth=2)
-
-                        # Preencher a região factível apenas em regiões positivas
+                    # Tratamento para restrições verticais (ex: x1 <= 5)
+                    if re.fullmatch(r'1x1', lhs) or re.fullmatch(r'x1', lhs):
                         if operator == '<=':
-                            plt.fill_between(
-                                x_range,
-                                y_range,
-                                -100,
-                                alpha=0.2,
-                                color='gray',
-                                where=(x_range >= 0) if non_negativity['x1'] else True
-                            )
+                            plt.axvline(x=rhs, color='purple', linewidth=2, label=f'Restrição {i + 1}')
+                            plt.fill_betweenx(y_range, -100, rhs, alpha=0.2, color='gray')
                         elif operator == '>=':
-                            plt.fill_between(
-                                x_range,
-                                y_range,
-                                100,
-                                alpha=0.2,
-                                color='gray',
-                                where=(x_range >= 0) if non_negativity['x1'] else True
-                            )
+                            plt.axvline(x=rhs, color='purple', linewidth=2, label=f'Restrição {i + 1}')
+                            plt.fill_betweenx(y_range, rhs, 100, alpha=0.2, color='gray')
 
-                except ZeroDivisionError:
-                    print(f"Erro: Divisão por zero ao desenhar restrição {i + 1}")
+                    # Tratamento para restrições horizontais (ex: x2 <= 6)
+                    elif re.fullmatch(r'1x2', lhs) or re.fullmatch(r'x2', lhs):
+                        if operator == '<=':
+                            plt.axhline(y=rhs, color='purple', linewidth=2, label=f'Restrição {i + 1}')
+                            plt.fill_between(x_range, -100, rhs, alpha=0.2, color='gray')
+                        elif operator == '>=':
+                            plt.axhline(y=rhs, color='purple', linewidth=2, label=f'Restrição {i + 1}')
+                            plt.fill_between(x_range, rhs, 100, alpha=0.2, color='gray')
+
+                    # Tratamento para restrições lineares
+                    else:
+                        coef_match = re.match(r'([+-]?\d*\.?\d*)x1([+-]?\d*\.?\d*)x2', lhs)
+                        if coef_match:
+                            coef_x1 = float(coef_match.group(1)) if coef_match.group(1) else 1
+                            coef_x2 = float(coef_match.group(2)) if coef_match.group(2) else 1
+
+                            y_values = (rhs - coef_x1 * x_range) / coef_x2
+                            plt.plot(x_range, y_values, label=f'Restrição {i + 1}', linewidth=2)
+
+                            if operator == '<=':
+                                plt.fill_between(x_range, y_values, -100, alpha=0.2, color='gray')
+                            elif operator == '>=':
+                                plt.fill_between(x_range, y_values, 100, alpha=0.2, color='gray')
+
                 except Exception as e:
                     print(f"Erro ao desenhar restrição {i + 1}: {e}")
 
-            # Adicionar ponto ótimo ao gráfico com anotação
+            # Adicionar ponto ótimo ao gráfico
             plt.scatter(optimal_point[0], optimal_point[1], color='red', s=100, label='Solução Ótima')
             plt.text(optimal_point[0], optimal_point[1], f'({optimal_point[0]}, {optimal_point[1]})', fontsize=10, color='red')
 
-            # Ajustar limites positivos
-            plt.xlim(0 if non_negativity['x1'] else -1, 10)
-            plt.ylim(0 if non_negativity['x2'] else -1, 10)
-
-            # Adicionar grid
+            plt.xlim(0, 10)
+            plt.ylim(0, 10)
             plt.grid(color='gray', linestyle='--', linewidth=0.5, alpha=0.7)
-
-            # Adicionar legenda
             plt.legend()
-
-            # Salvar gráfico
             plt.savefig(filepath)
             plt.close()
 
@@ -216,10 +228,6 @@ def optimize(request):
                 'graph_path': f"/static/graph.png"
             })
 
-        except ValueError as ve:
-            return JsonResponse({'error': str(ve)}, status=400)
-        except ZeroDivisionError:
-            return JsonResponse({'error': 'Erro: Divisão por zero ao calcular pontos de restrição.'}, status=400)
         except Exception as e:
             print(f"Erro inesperado: {e}")
             return JsonResponse({'error': f"Erro inesperado: {str(e)}"}, status=500)
