@@ -22,16 +22,18 @@ Clone este repositório para o seu computador:
 
 ## 🐍 3. Configurando o Ambiente Virtual
 
-Crie e ative um ambiente virtual:
+Crie um ambiente virtual:
 
 Windows:
-
 > python -m venv venv
+
+Ative o ambiente virtual:
 > venv\Scripts\activate
 
 Linux/MacOS:
-
 > python -m venv venv
+> 
+Ative o ambiente virtual:
 > source venv/bin/activate
 
 
