@@ -24,17 +24,11 @@ Clone este repositório para o seu computador:
 
 Crie um ambiente virtual:
 
-Windows:
+Windows c/ MINGW64:
 > python -m venv venv
 
 Ative o ambiente virtual:
-> venv\Scripts\activate
-
-Linux/MacOS:
-> python -m venv venv
-> 
-Ative o ambiente virtual:
-> source venv/bin/activate
+> source venv/Scripts/activate
 
 
 ## 📦 4. Instalando Dependências
