@@ -1,9 +1,9 @@
-# 🛠️ Projeto Django - Otimização Linear
+# 🛠️ Projeto Web Django - Otimização Linear
 > por Marcelo Ribeiro | Pesquisa Operacional | Professor Eduardo Noronha
 
 <br>
 
-Este projeto Django implementa um sistema de otimização linear com interface gráfica e geração de gráficos.
+Este projeto Web usando Django implementa um sistema de otimização linear com interface gráfica e geração de gráficos.
 <br><br>
 
 ## 🚀 **1. Pré-requisitos**
