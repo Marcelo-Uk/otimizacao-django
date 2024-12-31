@@ -1,6 +1,5 @@
 # 🛠️ Projeto Django - Otimização Linear
-
-#### por Marcelo Ribeiro
+#### por Marcelo Ribeiro | Pesquisa Operacional | Professor Eduardo Noronha
 
 Este projeto Django implementa um sistema de otimização linear com interface gráfica e geração de gráficos.
 
