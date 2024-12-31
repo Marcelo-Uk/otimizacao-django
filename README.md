@@ -43,6 +43,7 @@ Instale as bibliotecas necessárias:
 Crie as tabelas do banco de dados:
 
 > python manage.py makemigrations
+> 
 > python manage.py migrate
 
 
@@ -66,7 +67,9 @@ Acesse no navegador:
 ## 📊 8. Testando a Aplicação
 
 > Vá para /solver/.
+> 
 > Preencha os campos e execute a otimização linear.
+> 
 > Visualize os resultados e gráficos gerados.
 
 
