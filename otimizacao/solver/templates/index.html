@@ -1,185 +1,103 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-br">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Otimização Linear</title>
-    <style>
-        .section { margin-bottom: 20px; }
-        .section h3 { margin-bottom: 10px; }
-        .variable, .constraint { margin-bottom: 10px; }
-        .variable input, .constraint input, .constraint select {
-            margin-right: 10px;
-        }
-        textarea {
-            width: 100%;
-            height: 50px;
-            margin-bottom: 10px;
-        }
-        #graphSection {
-            margin-top: 30px;
-            display: none;
-        }
-        #graph-image {
-            width: 100%;
-            max-width: 600px;
-            border: 1px solid #ddd;
-        }
-        .constraint {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .constraint button {
-            background: red;
-            color: white;
-            border: none;
-            padding: 3px 6px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-    </style>
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <h1>Otimização Linear</h1>
-    
-    <!-- Função Objetivo -->
-    <div class="section">
-        <h3>Função Objetivo</h3>
-        <label>
-            Tipo:
-            <select id="objectiveType">
-                <option value="maximize">Maximizar</option>
-                <option value="minimize">Minimizar</option>
-            </select>
-        </label>
-        <br>
-        <textarea id="objectiveFunction" placeholder="Exemplo: 2x1 + 3x2"></textarea>
+    <div class="header">
+        <div class="header-1-1">
+            <h1>Otimização Linear</h1>
+        </div>
+        <div class="header-1-2">
+            <span>por Marcelo Ribeiro</span>
+        </div>
+
     </div>
     
-    <!-- Restrições Técnicas -->
-    <div class="section">
-        <h3>Restrições Técnicas</h3>
-        <div id="constraints">
-            <div class="constraint">
-                <input type="text" placeholder="Exemplo: x1 + x2 <= 10" class="con-restriction">
+    <!-- 🔹 Body -->
+    <div class="body">
+
+        <div class="body-1">
+            <div class="body-div-1-1">
+                <div class="body-div-1-1-1">
+                    <div class="body-div-1-1-1-1">
+                        <span>Função Objetivo</span>
+                    </div>
+                    <div class="body-div-1-1-1-2">
+                        <label>
+                            <select id="objectiveType">
+                                <option class="maximize-field" value="maximize">Maximizar</option>
+                                <option value="minimize">Minimizar</option>
+                            </select>
+                        </label>
+                    </div>
+                </div>
+
+                <textarea id="objectiveFunction" placeholder="Exemplo: 2x1+3x2"></textarea>
+            </div>
+
+            <div class="body-div-1-2">
+                <div class="body-div-1-2-1">
+                    <p>Restrições Técnicas</p>
+    
+                    <div id="constraints">
+                        <div class="constraint">
+                            <input type="text" placeholder="Exemplo: x1+x2<=10" class="con-restriction">
+                        </div>
+                    </div>
+                    <button class="add-button" onclick="addConstraint()">+ Adicionar</button>
+                </div>
+    
+                <div class="body-div-1-2-2">
+                    <p>Restr. Não Negat.</p>
+                    
+                    <label class="checkbox-container">
+                        x1 ≥ 0:
+                        <input type="checkbox" id="nonNegativityX1" checked>
+                        <span class="custom-checkbox"></span>
+                    </label>
+                    <br>
+                    <label class="checkbox-container">
+                        x2 ≥ 0:
+                        <input type="checkbox" id="nonNegativityX2" checked>
+                        <span class="custom-checkbox"></span>
+                    </label>
+                    <br>
+                    <button class="solve-button" onclick="fetchResults()">Resolver</button>
+                </div>
+            </div>            
+
+        </div>
+
+        <div class="body-2">
+
+            <div class="body-div-2-1">
+
+                <div class=".body-div-2-1-1">
+                    <h3>Pontos das Restrições</h3>
+                    <div id="restrictionPoints"></div>
+                </div>
+
+                <div class=".body-div-2-1-2">
+                    <h3>Resultados</h3>
+                    <div id="result"></div>
+                </div>
+
+            </div>
+
+            <div class="body-div-2-2">
+                <div id="graphSection">
+                    <img id="graph-image" src="" alt="Gráfico da Solução">
+                </div>
             </div>
         </div>
-        <button onclick="addConstraint()">+ Adicionar Restrição</button>
     </div>
 
-    <!-- Restrições de Não Negatividade -->
-    <div class="section">
-        <h3>Restrições de Não Negatividade</h3>
-        <label>
-            x1 ≥ 0:
-            <input type="checkbox" id="nonNegativityX1" checked>
-        </label>
-        <br>
-        <label>
-            x2 ≥ 0:
-            <input type="checkbox" id="nonNegativityX2" checked>
-        </label>
-    </div>
-    
-    <!-- Botão para Resolver -->
-    <div class="section">
-        <button onclick="fetchResults()">Resolver</button>
-    </div>
-
-    <!-- Pontos das Restrições -->
-    <div class="section">
-        <h3>Pontos das Restrições:</h3>
-        <pre id="restrictionPoints"></pre>
-    </div>
-    
-    <!-- Resultados -->
-    <div class="section">
-        <h2>Resultados:</h2>
-        <pre id="result"></pre>
-    </div>
-    
-    <!-- Gráfico da Solução (MATPLOTLIB) -->
-    <div class="section" id="graphSection">
-        <h2>Gráfico da Solução:</h2>
-        <img id="graph-image" src="" alt="Gráfico da Solução">
-    </div>
 
     {% csrf_token %}
-    
-    <script>
-        function addConstraint() {
-            const div = document.createElement('div');
-            div.className = 'constraint';
-            div.innerHTML = `
-                <input type="text" placeholder="Exemplo: x1 + x2 <= 10" class="con-restriction">
-                <button onclick="removeConstraint(this)">Remover</button>
-            `;
-            document.getElementById('constraints').appendChild(div);
-        }
-
-        function removeConstraint(button) {
-            button.parentElement.remove();
-        }
-
-        function getCSRFToken() {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.startsWith('csrftoken=')) {
-                    return cookie.substring('csrftoken='.length, cookie.length);
-                }
-            }
-            return null;
-        }
-
-        async function fetchResults() {
-            const objective = document.getElementById('objectiveType').value;
-            const objectiveFunction = document.getElementById('objectiveFunction').value;
-
-            const constraints = Array.from(document.querySelectorAll('.con-restriction'))
-                .map(el => el.value);
-
-            const nonNegativity = {
-                x1: document.getElementById('nonNegativityX1').checked,
-                x2: document.getElementById('nonNegativityX2').checked
-            };
-
-            const data = {
-                objective,
-                objectiveFunction,
-                constraints,
-                nonNegativity
-            };
-        
-            try {
-                const csrfToken = getCSRFToken();
-                const response = await fetch('/solver/optimize/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
-                    },
-                    body: JSON.stringify(data)
-                });
-            
-                const result = await response.json();
-            
-                document.getElementById('result').innerHTML = `
-                    <strong>Ponto Ótimo:</strong> ${result['Ponto Ótimo']}<br>
-                    <strong>Resultado Objetivo:</strong> ${result['Resultado Objetivo']}
-                `;
-            
-                document.getElementById('restrictionPoints').innerHTML = result['Pontos Restrição']
-                    .map(r => `${r['Restrição']}: (${r['Pontos'][0][0]}, ${r['Pontos'][0][1]}) → (${r['Pontos'][1][0]}, ${r['Pontos'][1][1]})`)
-                    .join('<br>');
-            
-                document.getElementById('graph-image').src = result['graph_path'] + '?t=' + new Date().getTime();
-                document.getElementById('graphSection').style.display = 'block';
-            } catch (error) {
-                console.error('Erro:', error);
-                alert('Erro inesperado.');
-            }
-        }
-    </script>
+    <script src="/static/script.js"></script>
 </body>
 </html>
-<!-- ############### Controle de Versão: FINAL FULL ############### -->
