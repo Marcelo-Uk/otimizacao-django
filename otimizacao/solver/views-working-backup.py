@@ -1,5 +1,5 @@
 import matplotlib
-matplotlib.use('Agg')  # Backend adequado para renderizar gráficos em servidores
+matplotlib.use('Agg')
 
 from django.shortcuts import render
 from django.http import JsonResponse
@@ -9,8 +9,6 @@ import json
 import re
 import numpy as np
 import matplotlib.pyplot as plt
-
-############### Controle de Versão: FINAL FULL ###############
 
 # View inicial
 def index(request):
@@ -31,7 +29,7 @@ def parse_expression(expression, variables):
         terms = re.findall(r'([+-]?\s*\d*\.*\d*)\s*([a-zA-Z_][a-zA-Z0-9_]*)', expression)
         parsed_terms = []
         for coef, var in terms:
-            coef = coef.replace(' ', '')  # Remove espaços
+            coef = coef.replace(' ', '') 
             if coef in ('', '+'):
                 coef = 1
             elif coef == '-':
@@ -65,14 +63,14 @@ def find_line_points(lhs: str, rhs: float):
         x1_coef = float(x1_match.group(1)) if x1_match and x1_match.group(1) not in ('', '+', '-') else (-1 if x1_match and x1_match.group(1) == '-' else 1)
         x2_coef = float(x2_match.group(1)) if x2_match and x2_match.group(1) not in ('', '+', '-') else (-1 if x2_match and x2_match.group(1) == '-' else 1)
 
-        # ⚠️ Resolução da Equação ⚠️
+        # Resolução da Equação
         # Caso com apenas x1 (ex: x1 <= 5)
         if x1_match and not x2_match:
             return (rhs / x1_coef, 0), (rhs / x1_coef, 2)
 
         # Caso com apenas x2 (ex: 2x2 <= 30)
         if x2_match and not x1_match:
-            resolved_rhs = rhs / x2_coef  # Resolvendo a equação para x2
+            resolved_rhs = rhs / x2_coef  
             return (0, resolved_rhs), (2, resolved_rhs)
 
         # Caso padrão com duas variáveis (ex: -x1 + 2x2 <= 4)
@@ -87,9 +85,6 @@ def find_line_points(lhs: str, rhs: float):
     except Exception as e:
         print(f"Erro ao calcular pontos da restrição: {e}")
         return (0, 0), (0, 0)
-
-
-
 
 # Função principal de otimização
 def optimize(request):
@@ -149,7 +144,7 @@ def optimize(request):
             optimal_point = [v.varValue for v in model.variables()]
             objective_result = value(model.objective)
 
-            # Gerar gráfico com Matplotlib
+            # Gerar gráfico
             filepath = 'solver/static/graph.png'
             os.makedirs(os.path.dirname(filepath), exist_ok=True)
             plt.figure(figsize=(10, 8))
@@ -222,8 +217,6 @@ def optimize(request):
                 except Exception as e:
                     print(f"Erro ao desenhar restrição {i + 1}: {e}")
 
-# ------------------------------------------------------------------------------------
-
             # Adicionar ponto ótimo ao gráfico
             plt.scatter(optimal_point[0], optimal_point[1], color='red', s=100, label='Solução Ótima')
             plt.text(optimal_point[0], optimal_point[1], f'({optimal_point[0]}, {optimal_point[1]})', fontsize=10, color='red')
@@ -252,8 +245,6 @@ def optimize(request):
             plt.legend()
             plt.savefig(filepath)
             plt.close()
-
-# ------------------------------------------------------------------------------------
 
             return JsonResponse({
                 'Ponto Ótimo': f"({', '.join(map(str, optimal_point))})",
