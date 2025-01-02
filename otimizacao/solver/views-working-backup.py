@@ -1,7 +1,3 @@
-
-#Essa views está rodando o sistema
-#Porém, existe um erro quando a função objetivo é no formato: 10x1+30x2+4000
-
 import matplotlib
 matplotlib.use('Agg')  # Backend adequado para renderizar gráficos em servidores
 
